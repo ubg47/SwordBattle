@@ -69,16 +69,15 @@
     const errorBox = document.getElementById("error");
 
     // Folder containing the Unity Build files.
-    const buildUrl = "./Build/";
+const buildUrl = "./Build/";
 
-    // The two split files must have 2 and 74 parts respectively.
-    const dataFile = buildUrl + "Build.data";
-    const wasmFile = buildUrl + "Build.wasm";
-    const frameworkFile = buildUrl + "Build.framework.js";
-    const loaderFile = buildUrl + "Build.loader.js";
+const dataFile = buildUrl + "Build.data";
+const wasmFile = buildUrl + "Build.wasm";
+const frameworkFile = buildUrl + "Build.framework.js";
+const loaderFile = buildUrl + "Build.loader.js";
 
-    const DATA_PARTS = 3;
-    const WASM_PARTS = 4;
+const DATA_PARTS = 3;
+const WASM_PARTS = 4;
     const PARTS_PER_BATCH = 8;
 
     let unityInstance = null;
@@ -100,7 +99,9 @@
     // file.data.part1.br, file.data.part01.br,
     // file.data.part1, file.data.part01.
     async function fetchPart(baseFile, partNumber, totalParts) {
-      const padded = String(partNumber).padStart(2, "0");
+      const candidates = [
+  baseFile + ".part" + String(partNumber).padStart(3, "0")
+];
       const stem = baseFile.replace(/\.br$/i, "");
 
       const candidates = [
