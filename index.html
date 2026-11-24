@@ -194,60 +194,57 @@
       return url;
     }
 
-    async function startGame() {
-      try {
-        setProgress(1, "Loading Brotli decompressor...");
-        // Brotli is decompressed here so the resulting Blob URLs do not need
-        // special server Content-Encoding headers.
-        const brotliModule = await import(
-          "https://unpkg.com/brotli-wasm@3.0.1/index.web.js?module"
-        );
-        const brotli = await brotliModule.default;
+   async function startGame() {
+  try {
+    setProgress(1, "Downloading game files...");
 
-        setProgress(3, "Downloading split game files...");
-        const dataCompressed = await loadSplitFile(dataFile, DATA_PARTS, "data", 3, 24);
-        const wasmCompressed = await loadSplitFile(wasmFile, WASM_PARTS, "WASM", 24, 78);
+    const dataBytes = await loadSplitFile(
+      dataFile, DATA_PARTS, "data", 1, 35
+    );
 
-        setProgress(80, "Downloading framework...");
-        const frameworkResult = await fetchSingleFile(frameworkFile);
+    const wasmBytes = await loadSplitFile(
+      wasmFile, WASM_PARTS, "WASM", 35, 80
+    );
 
-        setProgress(83, "Rebuilding and decompressing game files...");
-        // Make independent copies of the decompressed buffers for Blob creation.
-        const dataBytes = new Uint8Array(brotli.decompress(dataCompressed));
-        const wasmBytes = new Uint8Array(brotli.decompress(wasmCompressed));
-        const frameworkBytes = frameworkResult.alreadyDecompressed
-          ? frameworkResult.bytes
-          : new Uint8Array(brotli.decompress(frameworkResult.bytes));
+    setProgress(82, "Downloading framework...");
 
-        setProgress(91, "Starting Unity...");
-        const config = {
-          dataUrl: makeObjectUrl(dataBytes, "application/octet-stream"),
-          frameworkUrl: makeObjectUrl(frameworkBytes, "application/javascript"),
-          codeUrl: makeObjectUrl(wasmBytes, "application/wasm"),
-          streamingAssetsUrl: "StreamingAssets",
-          companyName: "CrazyGames",
-          productName: "Toilets Worms Shooter",
-          productVersion: "2"
-        };
+    const frameworkResult = await fetchSingleFile(frameworkFile);
 
-        if (typeof createUnityInstance !== "function") {
-          throw new Error("Unity loader loaded, but createUnityInstance was not found.");
-        }
+    setProgress(90, "Starting Unity...");
 
-        createUnityInstance(canvas, config, (progress) => {
-          setProgress(91 + progress * 9, "Starting game... " + Math.round(progress * 100) + "%");
-        }).then((instance) => {
-          unityInstance = instance;
-          window.unityInstance = instance;
-          loading.classList.add("hidden");
-          resizeGame();
-        }).catch((error) => {
-          showError(error && error.message ? error.message : String(error));
-        });
-      } catch (error) {
-        showError(error && error.message ? error.message : String(error));
-      }
+    const config = {
+      dataUrl: makeObjectUrl(dataBytes, "application/octet-stream"),
+      frameworkUrl: makeObjectUrl(
+        frameworkResult.bytes,
+        "application/javascript"
+      ),
+      codeUrl: makeObjectUrl(wasmBytes, "application/wasm"),
+      streamingAssetsUrl: "StreamingAssets",
+      companyName: "CrazyGames",
+      productName: "Toilets Worms Shooter",
+      productVersion: "2"
+    };
+
+    if (typeof createUnityInstance !== "function") {
+      throw new Error("Unity loader not found.");
     }
+
+    createUnityInstance(canvas, config, progress => {
+      setProgress(90 + progress * 10,
+        "Starting game... " + Math.round(progress * 100) + "%");
+    }).then(instance => {
+      unityInstance = instance;
+      window.unityInstance = instance;
+      loading.classList.add("hidden");
+      resizeGame();
+    }).catch(error => {
+      showError(error.message || String(error));
+    });
+
+  } catch (error) {
+    showError(error.message || String(error));
+  }
+}
 
     const loader = document.createElement("script");
     loader.src = loaderFile;
