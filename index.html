@@ -104,12 +104,12 @@
       const stem = baseFile.replace(/\.br$/i, "");
 
       const candidates = [
-        baseFile + ".part" + partNumber,
-        baseFile + ".part" + padded,
-        stem + ".part" + partNumber + ".br",
-        stem + ".part" + padded + ".br",
-        stem + ".part" + partNumber,
-        stem + ".part" + padded
+        baseFile + ".part0" + partNumber,
+        baseFile + ".part0" + padded,
+        stem + ".part0" + partNumber + ".br",
+        stem + ".part0" + padded + ".br",
+        stem + ".part0" + partNumber,
+        stem + ".part0" + padded
       ];
 
       let lastProblem = "No matching part file was found.";
