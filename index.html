@@ -202,10 +202,10 @@ async function fetchPart(baseFile, partNumber, totalParts) {
 
     const config = {
       dataUrl: makeObjectUrl(dataBytes, "application/octet-stream"),
+      autoSyncPersistentDataPath: true,
       frameworkUrl: makeObjectUrl(
         frameworkResult.bytes,
         "application/javascript"
-        autoSyncPersistentDataPath: true,
       ),
       codeUrl: makeObjectUrl(wasmBytes, "application/wasm"),
       streamingAssetsUrl: "StreamingAssets",
