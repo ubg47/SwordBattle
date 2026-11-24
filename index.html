@@ -265,6 +265,7 @@ function startUnity() {
     productName: "SwordBattle",
     productVersion: "1.0",
     showBanner: unityShowBanner
+    autoSyncPersistentDataPath: true,
   };
 
   loadingBar.style.display = "block";
@@ -287,10 +288,10 @@ function startUnity() {
       }
     ).then(() => {
       loadingBar.style.display = "none";
-    }).catch((error) => {
-      console.error("Unity startup error:", error);
-      unityShowBanner(String(error), "error");
-    });
+.catch((error) => {
+    console.error("UNITY GAME ERROR:", error);
+    unityShowBanner(String(error), "error");
+});
   };
 
   script.onerror = () => {
