@@ -240,22 +240,17 @@ const PART_FILES = [
           updateBannerVisibility();
         }
 
-        var buildUrl = "Build";
-        var loaderUrl = buildUrl + "/Build.loader.js";
-        var config = {
-          dataUrl:
-            assembledBlobs["Build/Build.data"] ||
-            buildUrl + "/Build.data",
-          frameworkUrl: buildUrl + "/Build.framework.js",
-          codeUrl:
-            assembledBlobs["Build/Build.wasm"] ||
-            buildUrl + "/Build.wasm",
-          streamingAssetsUrl: "StreamingAssets",
-          companyName: "The Interviewed",
-          productName: "CheeseRolling",
-          productVersion: "v1.5.1",
-          showBanner: unityShowBanner,
-        };
+const buildUrl = "Build";
+
+const config = {
+    dataUrl: buildUrl + "/Build.data",
+    frameworkUrl: buildUrl + "/Build.framework.js",
+    codeUrl: buildUrl + "/Build.wasm",
+    streamingAssetsUrl: "StreamingAssets",
+    companyName: "DefaultCompany",
+    productName: "Game",
+    productVersion: "1.0"
+};
 
         if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
           var meta = document.createElement("meta");
