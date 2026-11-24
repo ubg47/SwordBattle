@@ -98,50 +98,37 @@ const WASM_PARTS = 4;
     // file.data.br.part1, file.data.br.part01,
     // file.data.part1.br, file.data.part01.br,
     // file.data.part1, file.data.part01.
-    async function fetchPart(baseFile, partNumber, totalParts) {
-      const candidates = [
-  baseFile + ".part" + String(partNumber).padStart(3, "0")
-];
-      const stem = baseFile.replace(/\.br$/i, "");
+   
+async function fetchPart(baseFile, partNumber, totalParts) {
+  const filename = baseFile + ".part" +
+    String(partNumber).padStart(3, "0");
 
-      const candidates = [
-        baseFile + ".part0" + partNumber,
-        baseFile + ".part0" + padded,
-        stem + ".part0" + partNumber + ".br",
-        stem + ".part0" + padded + ".br",
-        stem + ".part0" + partNumber,
-        stem + ".part0" + padded
-      ];
+  let lastProblem = "Unknown error";
 
-      let lastProblem = "No matching part file was found.";
-      for (const url of candidates) {
-        try {
-          const response = await fetch(url);
-          if (response.ok) {
-            const encoding = (response.headers.get("Content-Encoding") || "").toLowerCase();
-            if (encoding.includes("br")) {
-              throw new Error(
-                "This split part is being Brotli-decoded by the host (Content-Encoding: br). " +
-                "Split parts must be served as unchanged bytes; use names ending in .part1, " +
-                "not .part1.br, or disable Brotli encoding for the part files."
-              );
-            }
-            const bytes = new Uint8Array(await response.arrayBuffer());
-            if (!bytes.length) throw new Error("The part is empty: " + url);
-            return bytes;
-          }
-          lastProblem = url + " returned HTTP " + response.status;
-        } catch (error) {
-          lastProblem = error.message || String(error);
-        }
-      }
+  try {
+    const response = await fetch(filename);
 
-      throw new Error(
-        "Missing part " + partNumber + " of " + totalParts +
-        " for:\n" + baseFile + "\n\nTried these names:\n" +
-        candidates.join("\n") + "\n\nLast error: " + lastProblem
-      );
+    if (!response.ok) {
+      throw new Error(filename + " returned HTTP " + response.status);
     }
+
+    const bytes = new Uint8Array(await response.arrayBuffer());
+
+    if (!bytes.length) {
+      throw new Error("Empty part: " + filename);
+    }
+
+    return bytes;
+
+  } catch (error) {
+    lastProblem = error.message || String(error);
+  }
+
+  throw new Error(
+    "Could not load part " + partNumber +
+    " of " + totalParts + "\n" + lastProblem
+  );
+}
 
     async function loadSplitFile(baseFile, partCount, label, progressStart, progressEnd) {
       const parts = new Array(partCount);
