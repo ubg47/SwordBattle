@@ -205,6 +205,7 @@ async function fetchPart(baseFile, partNumber, totalParts) {
       frameworkUrl: makeObjectUrl(
         frameworkResult.bytes,
         "application/javascript"
+        autoSyncPersistentDataPath: true,
       ),
       codeUrl: makeObjectUrl(wasmBytes, "application/wasm"),
       streamingAssetsUrl: "StreamingAssets",
@@ -270,6 +271,11 @@ async function fetchPart(baseFile, partNumber, totalParts) {
       setTimeout(resizeGame, 100);
     });
 
+document.addEventListener("click", () => {
+  const audio = document.querySelector("audio");
+  if (audio) audio.play().catch(() => {});
+}, { once: true });
+    
     window.addEventListener("beforeunload", () => {
       for (const url of temporaryUrls) URL.revokeObjectURL(url);
     });
