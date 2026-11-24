@@ -88,10 +88,18 @@
     </div>
  <script>
 
-      const PART_FILES = [
-        { base: "Build/Build.data", label: "Build.data" },
-        { base: "Build/Build.wasm", label: "Build.wasm" },
-      ];
+const PART_FILES = [
+  {
+    base: "Build/Build.data",
+    label: "Build.data",
+    parts: 3
+  },
+  {
+    base: "Build/Build.wasm",
+    label: "Build.wasm",
+    parts: 4
+  },
+];
 
       const assembledBlobs = {};
 
