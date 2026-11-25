@@ -1,284 +1,132 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Eccentric Games</title>
-  <link rel="stylesheet" href="TemplateData/style.css">
-  <link rel="stylesheet" href="EccentricData/eccentric-style.css">
-  <script src="TemplateData/gamepush-unity.js"></script>
-  <style>
-    * { box-sizing: border-box; }
-    html, body {
-      width: 100%; height: 100%; margin: 0; overflow: hidden;
-      background: #000; font-family: Arial, sans-serif;
-    }
-    #game-container {
-      position: fixed; inset: 0; width: 100vw; height: 100vh;
-      height: 100dvh; background: #000; overflow: hidden;
-    }
-    #unity-canvas {
-      display: block; width: 100%; height: 100%;
-      background: #000; outline: none;
-    }
-    #loading {
-      position: absolute; inset: 0; display: flex; flex-direction: column;
-      align-items: center; justify-content: center; gap: 14px;
-      color: white; background: #000; z-index: 2;
-    }
-    #loading.hidden { display: none; }
-    #loading-title { font-size: clamp(20px, 4vw, 32px); font-weight: 700; text-align: center; }
-    #progress-track {
-      width: min(420px, 75vw); height: 10px;
-      border-radius: 20px; background: #333; overflow: hidden;
-    }
-    #progress-bar { width: 0%; height: 100%; background: #19a7ff; transition: width .15s; }
-    #status { color: #bbb; font-size: 13px; text-align: center; max-width: 85vw; }
-    #fullscreen {
-      position: absolute; top: max(12px, env(safe-area-inset-top));
-      right: max(12px, env(safe-area-inset-right)); z-index: 3;
-      border: 1px solid #ffffff55; border-radius: 8px;
-      background: #111c; color: #fff; padding: 10px 14px;
-      font-size: 14px; cursor: pointer;
-    }
-    #error {
-      display: none; position: absolute; left: 5%; right: 5%; bottom: 5%;
-      z-index: 4; padding: 12px; color: #fff; background: #8b0000;
-      border-radius: 8px; white-space: pre-wrap; font-size: 13px;
-      max-height: 45%; overflow: auto;
-    }
-  </style>
-</head>
-<body>
-  <main id="game-container">
-    <canvas id="unity-canvas" tabindex="-1"></canvas>
-    <div id="loading">
-      <div id="loading-title">Loading Toilets Worms Shooter...</div>
-      <div id="progress-track"><div id="progress-bar"></div></div>
-      <div id="status">Starting game...</div>
-    </div>
-    <button id="fullscreen" type="button">⛶ Fullscreen</button>
-    <div id="error"></div>
-  </main>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  </head>
+  <body style="margin:0;padding:0" class="noselect">
+    <div id="loading-text" style="color: black; font-size: 48px; font-family: cursive; text-align: center; margin-top: 20px;">LOADING...</div>
+    <canvas id="unity-canvas"
+      style="position:fixed;top:0;left:0;width:100%;height:100%;outline:none"></canvas>
 
-  <script>
-    const canvas = document.getElementById("unity-canvas");
-    const loading = document.getElementById("loading");
-    const progressBar = document.getElementById("progress-bar");
-    const statusText = document.getElementById("status");
-    const errorBox = document.getElementById("error");
+    <script>
+    const SPLIT_MAP = {"Build.wasm": null, "Build.data": null};
+    </script>
 
-    // Folder containing the Unity Build files.
-const buildUrl = "./Build/";
-
-const dataFile = buildUrl + "Build.data";
-const wasmFile = buildUrl + "Build.wasm";
-const frameworkFile = buildUrl + "Build.framework.js";
-const loaderFile = buildUrl + "Build.loader.js";
-
-const DATA_PARTS = 3;
-const WASM_PARTS = 4;
-    const PARTS_PER_BATCH = 8;
-
-    let unityInstance = null;
-    const temporaryUrls = [];
-
-    function setProgress(percent, message) {
-      progressBar.style.width = Math.max(0, Math.min(100, percent)) + "%";
-      statusText.textContent = message;
-    }
-
-    function showError(message) {
-      errorBox.style.display = "block";
-      errorBox.textContent = "The game could not be loaded.\n\n" + message;
-      statusText.textContent = "Loading failed.";
-    }
-
-    // Supports these common split naming formats:
-    // file.data.br.part1, file.data.br.part01,
-    // file.data.part1.br, file.data.part01.br,
-    // file.data.part1, file.data.part01.
-   
-async function fetchPart(baseFile, partNumber, totalParts) {
-  const filename = baseFile + ".part" +
-    String(partNumber).padStart(3, "0");
-
-  let lastProblem = "Unknown error";
-
-  try {
-    const response = await fetch(filename);
-
-    if (!response.ok) {
-      throw new Error(filename + " returned HTTP " + response.status);
-    }
-
-    const bytes = new Uint8Array(await response.arrayBuffer());
-
-    if (!bytes.length) {
-      throw new Error("Empty part: " + filename);
-    }
-
-    return bytes;
-
-  } catch (error) {
-    lastProblem = error.message || String(error);
-  }
-
-  throw new Error(
-    "Could not load part " + partNumber +
-    " of " + totalParts + "\n" + lastProblem
-  );
-}
-
-    async function loadSplitFile(baseFile, partCount, label, progressStart, progressEnd) {
-      const parts = new Array(partCount);
-      let finished = 0;
-
-      for (let start = 1; start <= partCount; start += PARTS_PER_BATCH) {
-        const end = Math.min(start + PARTS_PER_BATCH - 1, partCount);
-        const batch = [];
-        for (let part = start; part <= end; part++) {
-          batch.push(fetchPart(baseFile, part, partCount).then(bytes => ({ part, bytes })));
-        }
-
-        const results = await Promise.all(batch);
-        for (const result of results) {
-          parts[result.part - 1] = result.bytes;
-          finished++;
-        }
-
-        const fraction = finished / partCount;
-        const progress = progressStart + fraction * (progressEnd - progressStart);
-        setProgress(progress, "Downloading " + label + " parts: " + finished + "/" + partCount);
+    <script>
+    async function mergeParts(baseUrl) {
+      const parts = [];
+      for (let i = 1; i <= 99; i++) {
+        const testUrl = baseUrl + ".part00" + i;
+        try {
+          const head = await fetch(testUrl, { method: "HEAD" });
+          if (!head.ok) break;
+          parts.push(testUrl);
+        } catch { break; }
       }
+      if (parts.length === 0) return baseUrl;
 
-      // Join the binary chunks in their numbered order.
-      const totalLength = parts.reduce((sum, part) => sum + part.byteLength, 0);
-      const joined = new Uint8Array(totalLength);
+      const buffers = await Promise.all(parts.map(async (u) => {
+        const r = await fetch(u);
+        if (!r.ok) throw new Error("Failed part " + u);
+        return new Uint8Array(await r.arrayBuffer());
+      }));
+
+      const total = buffers.reduce((a, b) => a + b.length, 0);
+      const merged = new Uint8Array(total);
       let offset = 0;
-      for (const part of parts) {
-        joined.set(part, offset);
-        offset += part.byteLength;
+      for (const b of buffers) { merged.set(b, offset); offset += b.length; }
+
+      return URL.createObjectURL(new Blob([merged]));
+    }
+
+    async function preMergeAll() {
+      const map = {};
+      const files = Object.entries(SPLIT_MAP);
+      const total = files.length;
+      let done = 0;
+
+      const loadingText = document.getElementById("loading-text");
+
+      for (const [file, _] of files) {
+        const merged = await mergeParts("Build/" + file);
+        map[file] = merged;
+        done++;
+        const percent = Math.floor((done / total) * 100);
+        loadingText.innerText = `LOADING... ${percent}%`;
+        console.log("Premerged:", file, "→", merged);
       }
-      return joined;
+
+      loadingText.style.display = "none";
+
+      return map;
     }
 
-    async function fetchSingleFile(url) {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error("Could not fetch " + url + " (HTTP " + response.status + ").");
-      }
-      const bytes = new Uint8Array(await response.arrayBuffer());
-      return {
-        bytes,
-        alreadyDecompressed: (response.headers.get("Content-Encoding") || "")
-          .toLowerCase().includes("br")
-      };
-    }
-
-    function makeObjectUrl(bytes, mimeType) {
-      const url = URL.createObjectURL(new Blob([bytes], { type: mimeType }));
-      temporaryUrls.push(url);
-      return url;
-    }
-
-   async function startGame() {
-  try {
-    setProgress(1, "Downloading game files...");
-
-    const dataBytes = await loadSplitFile(
-      dataFile, DATA_PARTS, "data", 1, 35
-    );
-
-    const wasmBytes = await loadSplitFile(
-      wasmFile, WASM_PARTS, "WASM", 35, 80
-    );
-
-    setProgress(82, "Downloading framework...");
-
-    const frameworkResult = await fetchSingleFile(frameworkFile);
-
-    setProgress(90, "Starting Unity...");
-
-    const config = {
-      dataUrl: makeObjectUrl(dataBytes, "application/octet-stream"),
-      autoSyncPersistentDataPath: true,
-      frameworkUrl: makeObjectUrl(
-        frameworkResult.bytes,
-        "application/javascript"
-      ),
-      codeUrl: makeObjectUrl(wasmBytes, "application/wasm"),
-      streamingAssetsUrl: "StreamingAssets",
-      companyName: "CrazyGames",
-      productName: "Toilets Worms Shooter",
-      productVersion: "2"
-    };
-
-    if (typeof createUnityInstance !== "function") {
-      throw new Error("Unity loader not found.");
-    }
-
-    createUnityInstance(canvas, config, progress => {
-      setProgress(90 + progress * 10,
-        "Starting game... " + Math.round(progress * 100) + "%");
-    }).then(instance => {
-      unityInstance = instance;
-      window.unityInstance = instance;
-      loading.classList.add("hidden");
-      resizeGame();
-    }).catch(error => {
-      showError(error.message || String(error));
-    });
-
-  } catch (error) {
-    showError(error.message || String(error));
-  }
-}
-
-    const loader = document.createElement("script");
-    loader.src = loaderFile;
-    loader.onload = startGame;
-    loader.onerror = () => showError(
-      "Could not load the Unity loader:\n" + loaderFile +
-      "\n\nCheck that this file exists inside the Build folder."
-    );
-    document.head.appendChild(loader);
-
-    function resizeGame() {
-      const ratio = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width = Math.round(canvas.clientWidth * ratio);
-      canvas.height = Math.round(canvas.clientHeight * ratio);
-    }
-    window.addEventListener("resize", resizeGame);
-    window.addEventListener("orientationchange", () => setTimeout(resizeGame, 150));
-
-    document.getElementById("fullscreen").addEventListener("click", async () => {
-      try {
-        const target = document.getElementById("game-container");
-        if (!document.fullscreenElement) {
-          await (target.requestFullscreen ? target.requestFullscreen() : canvas.requestFullscreen());
-        } else {
-          await document.exitFullscreen();
+    (async () => {
+      const mergedMap = await preMergeAll();
+      window.SPLIT_MAP = mergedMap;
+      const origFetch = window.fetch;
+      window.fetch = async function(resource, options) {
+        if (typeof resource === "string") {
+          const key = resource.split("/").pop();
+          if (mergedMap[key]) {
+            console.log("Redirect fetch:", key);
+            return origFetch(mergedMap[key], options);
+          }
         }
-      } catch (error) {
-        showError("Fullscreen is not available: " + error.message);
-      }
-    });
+        return origFetch(resource, options);
+      };
 
-    document.addEventListener("fullscreenchange", () => {
-      document.getElementById("fullscreen").textContent =
-        document.fullscreenElement ? "✕ Exit fullscreen" : "⛶ Fullscreen";
-      setTimeout(resizeGame, 100);
-    });
+      const OrigXHR = window.XMLHttpRequest;
+      window.XMLHttpRequest = function() {
+        const xhr = new OrigXHR();
+        const origOpen = xhr.open;
+        xhr.open = function(method, url, ...rest) {
+          const key = url.split("/").pop();
+          if (mergedMap[key]) {
+            console.log("Redirect XHR:", key);
+            origOpen.call(xhr, method, mergedMap[key], ...rest);
+          } else {
+            origOpen.call(xhr, method, url, ...rest);
+          }
+        };
+        return xhr;
+      };
 
-document.addEventListener("click", () => {
-  const audio = document.querySelector("audio");
-  if (audio) audio.play().catch(() => {});
-}, { once: true });
-    
-    window.addEventListener("beforeunload", () => {
-      for (const url of temporaryUrls) URL.revokeObjectURL(url);
-    });
-  </script>
-</body>
+      const canvas = document.querySelector("#unity-canvas");
+      const loaderUrl = "Build/Build.loader.js";
+      const config = {
+        dataUrl: "Build/Build.data",
+        frameworkUrl: "Build/Build.framework.js",
+        codeUrl: "Build/Build.wasm",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "Sky Riders",
+        productName: "Sky Riders",
+        productVersion: "1.0.0"
+      };
+
+      const script = document.createElement("script");
+      script.src = loaderUrl;
+      script.onload = () => {
+        createUnityInstance(canvas, config, (progress) => {}).then((unityInstance) => {
+          window.gameInstance = unityInstance;
+        }).catch((message) => alert(message));
+      };
+      document.body.appendChild(script);
+    })();
+    </script>
+
+    <script>
+    function resizeCanvas() {
+      const canvas = document.getElementById("unity-canvas");
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      canvas.style.width = window.innerWidth + "px";
+      canvas.style.height = window.innerHeight + "px";
+    }
+    window.addEventListener("load", resizeCanvas);
+    window.addEventListener("resize", resizeCanvas);
+    </script>
+  </body>
 </html>
